@@ -349,6 +349,36 @@ function renderGameGrid() {
     return a === b;
   }
 
+  // Helper to check if an icon is a Water Droplet
+  function isWaterDroplet(icon) {
+    return icon && icon.includes('water-droplet-special');
+  }
+
+  // Helper to check if an icon is a Jerry Can
+  function isJerryCan(icon) {
+    return icon && icon.includes('jerry-can-special');
+  }
+
+  // Helper to check if an icon is a Water Pump
+  function isWaterPump(icon) {
+    return icon && icon.includes('water-pump-special');
+  }
+
+  // Create Water Droplet special icon
+  function createWaterDroplet() {
+    return '<div class="water-droplet-special" style="width: 40px; height: 40px; background: linear-gradient(135deg, #4fb3d9, #005f8a); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">💧</div>';
+  }
+
+  // Create Jerry Can special icon  
+  function createJerryCan() {
+    return '<div class="jerry-can-special" style="width: 40px; height: 40px; background: linear-gradient(135deg, #f1a2a2ff, #F16061); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 16px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);"><img src="img/water-can-transparent.png" alt="Jerry Can" style="width: 32px; height: 32px;"></div>';
+  }
+
+  // Create Water Pump special icon - this clears entire row and column when swapped
+  function createWaterPump() {
+    return '<div class="water-pump-special" style="width: 40px; height: 40px; background: linear-gradient(135deg, #FFD700, #FF8C00); border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.3);">🌊</div>';
+  }
+
   // Checks if there's a match of 3+ at (row, col)
   function checkMatchAt(row, col) {
     const val = grid[row][col];
@@ -369,150 +399,304 @@ function renderGameGrid() {
     return false;
   }
 
-  // Returns true if a swap at (r1,c1) <-> (r2,c2) would create a match
-  function swapCreatesMatch(r1, c1, r2, c2) {
-    const temp = grid[r1][c1];
-    grid[r1][c1] = grid[r2][c2];
-    grid[r2][c2] = temp;
-    const result = checkMatchAt(r1, c1) || checkMatchAt(r2, c2);
-    grid[r2][c2] = grid[r1][c1];
-    grid[r1][c1] = temp;
-    return result;
-  }
-
-  // Add popup elements for win/lose messages
-  function createPopup() {
-    // Only add if not already present
-    if (document.getElementById('popupOverlay')) return;
-    const popup = document.createElement('div');
-    popup.id = 'popupOverlay';
-    popup.style.display = 'none';
-    popup.style.position = 'fixed';
-    popup.style.top = '0';
-    popup.style.left = '0';
-    popup.style.width = '100vw';
-    popup.style.height = '100vh';
-    popup.style.background = 'rgba(0,0,0,0.5)';
-    popup.style.zIndex = '200';
-    popup.style.justifyContent = 'center';
-    popup.style.alignItems = 'center';
-    popup.innerHTML = `
-      <div id="popupBox" style="
-        background: #fff;
-        border-radius: 12px;
-        padding: 2rem 1.5rem;
-        max-width: 420px;
-        width: 90vw;
-        margin: auto;
-        text-align: center;
-        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-      ">
-        <h2 id="popupTitle"></h2>
-        <p id="popupMsg"></p>
-        <button id="returnHomeBtn" style="
-          margin-top:1rem;
-          width: 100%;
-          max-width: 220px;
-          box-sizing: border-box;
-          font-size: 1rem;
-          padding: 0.6rem 1rem;
-          border-radius: 4px;
-          background: #ffcc00;
-          border: none;
-          font-weight: bold;
-          cursor: pointer;
-          display: block;
-        ">Return to Homepage</button>
-      </div>
-    `;
-    document.body.appendChild(popup);
-
-    document.getElementById('returnHomeBtn').onclick = function() {
-      popup.style.display = 'none';
-      gameplaySection.style.display = 'none';
-      puzzleSection.style.display = 'block';
-      // Show the country scroll bar and select country instruction again
-      countryScroll.style.display = '';
-      if (selectCountryInstruction) {
-        selectCountryInstruction.style.display = '';
-      }
-      // If a callback is set (for win), call it
-      if (typeof window._popupOnComplete === 'function') {
-        window._popupOnComplete();
-        window._popupOnComplete = null;
-      }
-      // Select the last played country again
-      if (selectedCountry) {
-        selectCountry(selectedCountry);
-      }
-    };
-  }
-  createPopup();
-
-  // Show popup with title and message
-  function showPopup(title, msg, onComplete) {
-    document.getElementById('popupTitle').textContent = title;
-    // Use innerHTML so HTML tags like <br> and <strong> are rendered
-    document.getElementById('popupMsg').innerHTML = msg;
-    document.getElementById('popupOverlay').style.display = 'flex';
-    // Store callback for after popup closes
-    window._popupOnComplete = onComplete;
-  }
-
-  // Check for win/lose after every match or move
-  function checkWinLose() {
-    const left = parseInt(gameplaySection.dataset.objectiveLeft || 10, 10);
-    if (left <= 0) {
-      // Player completed the objective
-
-      // Show confetti when player wins
-      showConfetti();
-
-      // Calculate bonus points for unused moves
-      const bonusPoints = movesLeft * 2; // 2 points for each unused move
-      currentScore += bonusPoints; // Add bonus to current score
-
-      // Add the current score to the rewards summary (totalPoints in localStorage)
-      let totalPoints = localStorage.getItem('totalPoints');
-      if (!totalPoints) {
-        totalPoints = 0;
-      } else {
-        totalPoints = parseInt(totalPoints, 10);
-      }
-      totalPoints += currentScore;
-      localStorage.setItem('totalPoints', totalPoints);
-
-      // Get country description and photo
-      const countryInfo = countryDescriptions[selectedCountry];
-      let countryHtml = "";
-      if (countryInfo) {
-        countryHtml = `
-          <div style="margin:1rem 0;">
-            <img src="${countryInfo.img}" alt="${selectedCountry}" style="width:100%;max-width:220px;border-radius:8px;box-shadow:0 2px 8px #0001;">
-          </div>
-          <div style="font-size:1rem; color:#333; margin-bottom:0.5rem;">
-            <strong>About ${selectedCountry}:</strong><br>
-            ${countryInfo.desc}
-          </div>
-        `;
-      }
-
-      // Show the total score and bonus in the winning message, plus country info
-      showPopup(
-        "Level Complete!",
-        `Congratulations! You finished the level.<br>Your Total Score: <strong>${currentScore}</strong><br>Bonus for Unused Moves: <strong>${bonusPoints}</strong><br>${countryHtml}`,
-        function() {
-          // Unlock next level for this country
-          unlockNextLevel(selectedCountry);
+  // Clear 3x3 area around a position - now with visual animation
+  function clear3x3Area(centerRow, centerCol) {
+    let clearedCount = 0;
+    let objectiveCleared = 0;
+    
+    // First, mark cells for clearing with animation
+    const cellsToMark = [];
+    for (let r = centerRow - 1; r <= centerRow + 1; r++) {
+      for (let c = centerCol - 1; c <= centerCol + 1; c++) {
+        // Check if position is within grid bounds
+        if (r >= 0 && r < 9 && c >= 0 && c < 9 && grid[r][c] !== null) {
+          cellsToMark.push([r, c]);
+          // Check if we're clearing an objective icon
+          if (isSameIcon(grid[r][c], icons[objectiveIconIndex])) {
+            objectiveCleared++;
+          }
+          clearedCount++;
         }
-      );
-    } else if (movesLeft <= 0) {
-      // Player failed the level
-      showPopup("Level Failed", "You ran out of moves. Try again!");
+      }
     }
+    
+    // Add visual effect to show what will be cleared
+    cellsToMark.forEach(([r, c]) => {
+      const cellIndex = r * 9 + c;
+      if (gameGrid.children[cellIndex]) {
+        gameGrid.children[cellIndex].style.background = '#ffeb3b';
+        gameGrid.children[cellIndex].style.transform = 'scale(1.1)';
+        gameGrid.children[cellIndex].style.transition = 'all 0.3s ease';
+      }
+    });
+    
+    // After showing the effect, actually clear the cells
+    setTimeout(() => {
+      cellsToMark.forEach(([r, c]) => {
+        grid[r][c] = null;
+        const cellIndex = r * 9 + c;
+        if (gameGrid.children[cellIndex]) {
+          gameGrid.children[cellIndex].style.background = '';
+          gameGrid.children[cellIndex].style.transform = '';
+          gameGrid.children[cellIndex].style.transition = '';
+        }
+      });
+      
+      // Add bonus points for Water Droplet activation (10 points for each cleared icon)
+      currentScore += clearedCount * 10;
+      
+      // Update objective if we cleared objective icons
+      if (objectiveCleared > 0) {
+        let left = parseInt(gameplaySection.dataset.objectiveLeft || 10, 10);
+        left = left - objectiveCleared;
+        gameplaySection.dataset.objectiveLeft = left > 0 ? left : 0;
+        updateObjectiveText();
+      }
+      
+      updateStats();
+    }, 500); // Give time to see the highlighting
+    
+    return clearedCount > 0;
+  }
+
+  // Clear all tiles of a specific type - now with visual animation
+  function clearAllOfType(targetIcon) {
+    let clearedCount = 0;
+    let objectiveCleared = 0;
+    
+    // First, find and mark all tiles that match the target
+    const cellsToMark = [];
+    for (let r = 0; r < 9; r++) {
+      for (let c = 0; c < 9; c++) {
+        if (grid[r][c] !== null && isSameIcon(grid[r][c], targetIcon)) {
+          cellsToMark.push([r, c]);
+          // Check if we're clearing an objective icon
+          if (isSameIcon(grid[r][c], icons[objectiveIconIndex])) {
+            objectiveCleared++;
+          }
+          clearedCount++;
+        }
+      }
+    }
+    
+    // Add visual effect to show what will be cleared
+    cellsToMark.forEach(([r, c]) => {
+      const cellIndex = r * 9 + c;
+      if (gameGrid.children[cellIndex]) {
+        gameGrid.children[cellIndex].style.background = '#ff9800';
+        gameGrid.children[cellIndex].style.transform = 'scale(1.1)';
+        gameGrid.children[cellIndex].style.transition = 'all 0.3s ease';
+      }
+    });
+    
+    // After showing the effect, actually clear the cells
+    setTimeout(() => {
+      cellsToMark.forEach(([r, c]) => {
+        grid[r][c] = null;
+        const cellIndex = r * 9 + c;
+        if (gameGrid.children[cellIndex]) {
+          gameGrid.children[cellIndex].style.background = '';
+          gameGrid.children[cellIndex].style.transform = '';
+          gameGrid.children[cellIndex].style.transition = '';
+        }
+      });
+      
+      // Add bonus points for Jerry Can activation (15 points per cleared icon)
+      currentScore += clearedCount * 15;
+      
+      // Update objective if we cleared objective icons
+      if (objectiveCleared > 0) {
+        let left = parseInt(gameplaySection.dataset.objectiveLeft || 10, 10);
+        left = left - objectiveCleared;
+        gameplaySection.dataset.objectiveLeft = left > 0 ? left : 0;
+        updateObjectiveText();
+      }
+      
+      updateStats();
+    }, 500); // Give time to see the highlighting
+    
+    return clearedCount > 0;
+  }
+
+  // Clear entire row and column - now with visual animation
+  function clearRowAndColumn(targetRow, targetCol) {
+    let clearedCount = 0;
+    let objectiveCleared = 0;
+    
+    // First, find and mark all cells in the row and column
+    const cellsToMark = [];
+    
+    // Mark entire row
+    for (let c = 0; c < 9; c++) {
+      if (grid[targetRow][c] !== null) {
+        cellsToMark.push([targetRow, c]);
+        // Check if we're clearing an objective icon
+        if (isSameIcon(grid[targetRow][c], icons[objectiveIconIndex])) {
+          objectiveCleared++;
+        }
+        clearedCount++;
+      }
+    }
+    
+    // Mark entire column (avoid double-counting the intersection)
+    for (let r = 0; r < 9; r++) {
+      if (r !== targetRow && grid[r][targetCol] !== null) {
+        cellsToMark.push([r, targetCol]);
+        // Check if we're clearing an objective icon
+        if (isSameIcon(grid[r][targetCol], icons[objectiveIconIndex])) {
+          objectiveCleared++;
+        }
+        clearedCount++;
+      }
+    }
+    
+    // Add visual effect to show what will be cleared
+    cellsToMark.forEach(([r, c]) => {
+      const cellIndex = r * 9 + c;
+      if (gameGrid.children[cellIndex]) {
+        gameGrid.children[cellIndex].style.background = '#4caf50';
+        gameGrid.children[cellIndex].style.transform = 'scale(1.1)';
+        gameGrid.children[cellIndex].style.transition = 'all 0.3s ease';
+      }
+    });
+    
+    // After showing the effect, actually clear the cells
+    setTimeout(() => {
+      cellsToMark.forEach(([r, c]) => {
+        grid[r][c] = null;
+        const cellIndex = r * 9 + c;
+        if (gameGrid.children[cellIndex]) {
+          gameGrid.children[cellIndex].style.background = '';
+          gameGrid.children[cellIndex].style.transform = '';
+          gameGrid.children[cellIndex].style.transition = '';
+        }
+      });
+      
+      // Add bonus points for Water Pump activation (12 points per cleared icon)
+      currentScore += clearedCount * 12;
+      
+      // Update objective if we cleared objective icons
+      if (objectiveCleared > 0) {
+        let left = parseInt(gameplaySection.dataset.objectiveLeft || 10, 10);
+        left = left - objectiveCleared;
+        gameplaySection.dataset.objectiveLeft = left > 0 ? left : 0;
+        updateObjectiveText();
+      }
+      
+      updateStats();
+    }, 500); // Give time to see the highlighting
+    
+    return clearedCount > 0;
+  }
+
+  // Detect L or T-shaped matches - creates Water Pump
+  function detectLTMatches() {
+    const lTMatches = [];
+    
+    // Check each position for L or T-shaped matches
+    for (let row = 0; row < 9; row++) {
+      for (let col = 0; col < 9; col++) {
+        const icon = grid[row][col];
+        // Skip if empty cell or already a special tile
+        if (!icon || isWaterDroplet(icon) || isJerryCan(icon) || isWaterPump(icon)) continue;
+        
+        // Check for horizontal line with vertical extension
+        let horizontalCount = 1;
+        let leftExtent = col;
+        let rightExtent = col;
+        
+        // Count matching tiles to the left
+        while (leftExtent > 0 && isSameIcon(grid[row][leftExtent - 1], icon)) {
+          leftExtent--;
+          horizontalCount++;
+        }
+        
+        // Count matching tiles to the right
+        while (rightExtent < 8 && isSameIcon(grid[row][rightExtent + 1], icon)) {
+          rightExtent++;
+          horizontalCount++;
+        }
+        
+        // If we have 3+ horizontal matches, check for vertical extensions
+        if (horizontalCount >= 3) {
+          for (let checkCol = leftExtent; checkCol <= rightExtent; checkCol++) {
+            let verticalCount = 1;
+            let upExtent = row;
+            let downExtent = row;
+            
+            // Count matching tiles up
+            while (upExtent > 0 && isSameIcon(grid[upExtent - 1][checkCol], icon)) {
+              upExtent--;
+              verticalCount++;
+            }
+            
+            // Count matching tiles down
+            while (downExtent < 8 && isSameIcon(grid[downExtent + 1][checkCol], icon)) {
+              downExtent++;
+              verticalCount++;
+            }
+            
+            // If we have both horizontal (3+) and vertical (3+), it's an L or T shape
+            if (verticalCount >= 3) {
+              lTMatches.push({ row: row, col: checkCol, icon: icon });
+              break; // Only need one L/T match per horizontal line
+            }
+          }
+        }
+        
+        // Check for vertical line with horizontal extension
+        let verticalCount = 1;
+        let upExtent = row;
+        let downExtent = row;
+        
+        // Count matching tiles up
+        while (upExtent > 0 && isSameIcon(grid[upExtent - 1][col], icon)) {
+          upExtent--;
+          verticalCount++;
+        }
+        
+        // Count matching tiles down
+        while (downExtent < 8 && isSameIcon(grid[downExtent + 1][col], icon)) {
+          downExtent++;
+          verticalCount++;
+        }
+        
+        // If we have 3+ vertical matches, check for horizontal extensions
+        if (verticalCount >= 3) {
+          for (let checkRow = upExtent; checkRow <= downExtent; checkRow++) {
+            let horizontalCount2 = 1;
+            let leftExtent2 = col;
+            let rightExtent2 = col;
+            
+            // Count matching tiles left
+            while (leftExtent2 > 0 && isSameIcon(grid[checkRow][leftExtent2 - 1], icon)) {
+              leftExtent2--;
+              horizontalCount2++;
+            }
+            
+            // Count matching tiles right
+            while (rightExtent2 < 8 && isSameIcon(grid[checkRow][rightExtent2 + 1], icon)) {
+              rightExtent2++;
+              horizontalCount2++;
+            }
+            
+            // If we have both vertical (3+) and horizontal (3+), it's an L or T shape
+            if (horizontalCount2 >= 3) {
+              // Avoid duplicate L/T matches
+              const alreadyFound = lTMatches.some(match => 
+                Math.abs(match.row - checkRow) <= 1 && Math.abs(match.col - col) <= 1
+              );
+              if (!alreadyFound) {
+                lTMatches.push({ row: checkRow, col: col, icon: icon });
+              }
+              break; // Only need one L/T match per vertical line
+            }
+          }
+        }
+      }
+    }
+    
+    return lTMatches;
   }
 
   // Find and clear matches, and update score if objective icon is matched
@@ -524,12 +708,22 @@ function renderGameGrid() {
 
     // Store info about matches for scoring
     let matchGroups = [];
+    let waterDropletPositions = []; // Track where to place Water Droplets
+    let jerryCanPositions = []; // Track where to place Jerry Cans
+    let waterPumpPositions = []; // Track where to place Water Pumps
+
+    // First, detect L or T-shaped matches (highest priority)
+    const lTMatches = detectLTMatches();
+    for (let lTMatch of lTMatches) {
+      waterPumpPositions.push([lTMatch.row, lTMatch.col, lTMatch.icon]);
+    }
 
     // Check rows for matches
     for (let row = 0; row < 9; row++) {
       let count = 1;
+      let matchStart = 0;
       for (let col = 1; col < 9; col++) {
-        if (isSameIcon(grid[row][col], grid[row][col - 1]) && grid[row][col] !== null) {
+        if (isSameIcon(grid[row][col], grid[row][col - 1]) && grid[row][col] !== null && !isWaterDroplet(grid[row][col]) && !isJerryCan(grid[row][col]) && !isWaterPump(grid[row][col])) {
           count++;
         } else {
           if (count >= 3) {
@@ -538,8 +732,25 @@ function renderGameGrid() {
               matched[row][col - 1 - k] = true;
               matchGroups[matchGroups.length - 1].cells.push([row, col - 1 - k]);
             }
+            // Check if this match is part of an L/T (if so, don't create other special tiles)
+            const centerPos = Math.floor((matchStart + col - 1) / 2);
+            const isPartOfLT = waterPumpPositions.some(pump => 
+              pump[0] === row && Math.abs(pump[1] - centerPos) <= 1
+            );
+            
+            if (!isPartOfLT) {
+              // If 5 or more match, create Jerry Can at center position
+              if (count >= 5) {
+                jerryCanPositions.push([row, centerPos, grid[row][col - 1]]);
+              }
+              // If 4 match, create Water Droplet at center position
+              else if (count === 4) {
+                waterDropletPositions.push([row, centerPos, grid[row][col - 1]]);
+              }
+            }
           }
           count = 1;
+          matchStart = col;
         }
       }
       if (count >= 3) {
@@ -548,14 +759,31 @@ function renderGameGrid() {
           matched[row][8 - k] = true;
           matchGroups[matchGroups.length - 1].cells.push([row, 8 - k]);
         }
+        // Check if this match is part of an L/T
+        const centerPos = Math.floor((matchStart + 8) / 2);
+        const isPartOfLT = waterPumpPositions.some(pump => 
+          pump[0] === row && Math.abs(pump[1] - centerPos) <= 1
+        );
+        
+        if (!isPartOfLT) {
+          // If 5 or more match, create Jerry Can at center position
+          if (count >= 5) {
+            jerryCanPositions.push([row, centerPos, grid[row][8]]);
+          }
+          // If 4 match, create Water Droplet at center position
+          else if (count === 4) {
+            waterDropletPositions.push([row, centerPos, grid[row][8]]);
+          }
+        }
       }
     }
 
     // Check columns for matches
     for (let col = 0; col < 9; col++) {
       let count = 1;
+      let matchStart = 0;
       for (let row = 1; row < 9; row++) {
-        if (isSameIcon(grid[row][col], grid[row - 1][col]) && grid[row][col] !== null) {
+        if (isSameIcon(grid[row][col], grid[row - 1][col]) && grid[row][col] !== null && !isWaterDroplet(grid[row][col]) && !isJerryCan(grid[row][col]) && !isWaterPump(grid[row][col])) {
           count++;
         } else {
           if (count >= 3) {
@@ -564,8 +792,25 @@ function renderGameGrid() {
               matched[row - 1 - k][col] = true;
               matchGroups[matchGroups.length - 1].cells.push([row - 1 - k, col]);
             }
+            // Check if this match is part of an L/T
+            const centerPos = Math.floor((matchStart + row - 1) / 2);
+            const isPartOfLT = waterPumpPositions.some(pump => 
+              pump[1] === col && Math.abs(pump[0] - centerPos) <= 1
+            );
+            
+            if (!isPartOfLT) {
+              // If 5 or more match, create Jerry Can at center position
+              if (count >= 5) {
+                jerryCanPositions.push([centerPos, col, grid[row - 1][col]]);
+              }
+              // If 4 match, create Water Droplet at center position
+              else if (count === 4) {
+                waterDropletPositions.push([centerPos, col, grid[row - 1][col]]);
+              }
+            }
           }
           count = 1;
+          matchStart = row;
         }
       }
       if (count >= 3) {
@@ -573,6 +818,22 @@ function renderGameGrid() {
         for (let k = 0; k < count; k++) {
           matched[8 - k][col] = true;
           matchGroups[matchGroups.length - 1].cells.push([8 - k, col]);
+        }
+        // Check if this match is part of an L/T
+        const centerPos = Math.floor((matchStart + 8) / 2);
+        const isPartOfLT = waterPumpPositions.some(pump => 
+          pump[1] === col && Math.abs(pump[0] - centerPos) <= 1
+        );
+        
+        if (!isPartOfLT) {
+          // If 5 or more match, create Jerry Can at center position
+          if (count >= 5) {
+            jerryCanPositions.push([centerPos, col, grid[8][col]]);
+          }
+          // If 4 match, create Water Droplet at center position
+          else if (count === 4) {
+            waterDropletPositions.push([centerPos, col, grid[8][col]]);
+          }
         }
       }
     }
@@ -618,6 +879,33 @@ function renderGameGrid() {
       }
     }
 
+    // Place Water Pumps where L/T matches occurred (highest priority)
+    for (let pos of waterPumpPositions) {
+      const [row, col] = pos;
+      // Only place if the position was cleared (part of the match)
+      if (matched[row][col]) {
+        grid[row][col] = createWaterPump();
+      }
+    }
+
+    // Place Jerry Cans where 5+ matches occurred (higher priority than Water Droplets)
+    for (let pos of jerryCanPositions) {
+      const [row, col] = pos;
+      // Only place if the position was cleared and no Water Pump is already there
+      if (matched[row][col] && !isWaterPump(grid[row][col])) {
+        grid[row][col] = createJerryCan();
+      }
+    }
+
+    // Place Water Droplets where 4 matches occurred (only if no Jerry Can or Water Pump was placed)
+    for (let pos of waterDropletPositions) {
+      const [row, col] = pos;
+      // Only place if the position was cleared and no other special tile is already there
+      if (matched[row][col] && !isJerryCan(grid[row][col]) && !isWaterPump(grid[row][col])) {
+        grid[row][col] = createWaterDroplet();
+      }
+    }
+
     // Show matched cells in the DOM for a short time
     if (foundMatch) {
       for (let i = 0; i < gameGrid.children.length; i++) {
@@ -636,19 +924,87 @@ function renderGameGrid() {
   }
 
   function shiftAndFillGrid() {
+    // First pass: mark which cells need to fall
+    const fallAnimations = [];
+    
     for (let col = 0; col < 9; col++) {
       let pointer = 8;
+      const columnCells = [];
+      
+      // Collect all non-null cells from bottom to top
       for (let row = 8; row >= 0; row--) {
         if (grid[row][col] !== null) {
-          grid[pointer][col] = grid[row][col];
-          pointer--;
+          columnCells.push({ content: grid[row][col], oldRow: row });
         }
       }
-      // Fill the rest with new random icons
-      for (let row = pointer; row >= 0; row--) {
+      
+      // Clear the column
+      for (let row = 0; row < 9; row++) {
+        grid[row][col] = null;
+      }
+      
+      // Place existing cells at the bottom
+      for (let i = 0; i < columnCells.length; i++) {
+        const newRow = 8 - i;
+        const oldRow = columnCells[i].oldRow;
+        grid[newRow][col] = columnCells[i].content;
+        
+        // If cell moved, add to fall animation list
+        if (newRow !== oldRow) {
+          fallAnimations.push({
+            col: col,
+            oldRow: oldRow,
+            newRow: newRow,
+            distance: newRow - oldRow
+          });
+        }
+      }
+      
+      // Fill empty spots at the top with new icons
+      for (let row = 8 - columnCells.length; row >= 0; row--) {
         grid[row][col] = icons[Math.floor(Math.random() * icons.length)];
+        // Mark new cells for drop-in animation
+        fallAnimations.push({
+          col: col,
+          oldRow: row - 9, // Start from above the grid
+          newRow: row,
+          distance: 9 + row,
+          isNew: true
+        });
       }
     }
+    
+    // Apply fall animations to DOM
+    fallAnimations.forEach(anim => {
+      const cellIndex = anim.newRow * 9 + anim.col;
+      const cell = gameGrid.children[cellIndex];
+      if (cell) {
+        // Start the cell higher up to show falling effect
+        cell.style.transform = `translateY(-${anim.distance * 100}%)`;
+        cell.style.transition = 'transform 0.4s ease-out';
+        
+        // If it's a new cell, also fade it in
+        if (anim.isNew) {
+          cell.style.opacity = '0';
+          cell.style.transition = 'transform 0.4s ease-out, opacity 0.4s ease-out';
+        }
+        
+        // Animate to final position
+        setTimeout(() => {
+          cell.style.transform = 'translateY(0)';
+          if (anim.isNew) {
+            cell.style.opacity = '1';
+          }
+        }, 50);
+        
+        // Clean up styles after animation
+        setTimeout(() => {
+          cell.style.transform = '';
+          cell.style.transition = '';
+          cell.style.opacity = '';
+        }, 500);
+      }
+    });
   }
 
   function handleMatches() {
@@ -658,13 +1014,15 @@ function renderGameGrid() {
       found = findAndClearMatches();
       updateDOMGrid();
       if (found) {
-        // Wait a bit so player can see the matched tiles
+        // Wait longer to let players see the matched tiles and clearing effects
         setTimeout(() => {
           shiftAndFillGrid();
           updateDOMGrid();
-          // Check again for new matches (chain reactions)
-          process();
-        }, 350);
+          // Wait for fall animation to complete before checking for new matches
+          setTimeout(() => {
+            process(); // Check for chain reactions
+          }, 600); // Wait for fall animation to complete
+        }, 800); // Wait to see matches and special tile effects
       }
     }
     process();
@@ -693,7 +1051,75 @@ function renderGameGrid() {
           const c2 = parseInt(cell.dataset.col);
 
           if (areAdjacent(r1, c1, r2, c2)) {
-            // Try the swap in memory
+            // Check if either cell contains a special tile
+            const cell1HasDroplet = isWaterDroplet(grid[r1][c1]);
+            const cell2HasDroplet = isWaterDroplet(grid[r2][c2]);
+            const cell1HasJerryCan = isJerryCan(grid[r1][c1]);
+            const cell2HasJerryCan = isJerryCan(grid[r2][c2]);
+            const cell1HasWaterPump = isWaterPump(grid[r1][c1]);
+            const cell2HasWaterPump = isWaterPump(grid[r2][c2]);
+            
+            if (cell1HasDroplet || cell2HasDroplet || cell1HasJerryCan || cell2HasJerryCan || cell1HasWaterPump || cell2HasWaterPump) {
+              // Special tile swap - perform the swap first, then activate effect
+              const temp = grid[r1][c1];
+              grid[r1][c1] = grid[r2][c2];
+              grid[r2][c2] = temp;
+              
+              // Update DOM to show the swap
+              selectedCell.innerHTML = grid[r1][c1];
+              cell.innerHTML = grid[r2][c2];
+              
+              // Handle Water Pump effects (clear entire row and column)
+              if (cell1HasWaterPump) {
+                // Water Pump moved from (r1,c1) to (r2,c2), clear row and column of new position
+                clearRowAndColumn(r2, c2);
+              }
+              if (cell2HasWaterPump) {
+                // Water Pump moved from (r2,c2) to (r1,c1), clear row and column of new position
+                clearRowAndColumn(r1, c1);
+              }
+              
+              // Handle Jerry Can effects (clear all of the swapped icon type)
+              if (cell1HasJerryCan && !cell1HasWaterPump) {
+                // Jerry Can moved from (r1,c1) to (r2,c2), clear all of the icon it swapped with
+                clearAllOfType(grid[r1][c1]);
+              }
+              if (cell2HasJerryCan && !cell2HasWaterPump) {
+                // Jerry Can moved from (r2,c2) to (r1,c1), clear all of the icon it swapped with  
+                clearAllOfType(grid[r2][c2]);
+              }
+              
+              // Handle Water Droplet effects (clear 3x3 area)
+              if (cell1HasDroplet && !cell1HasJerryCan && !cell1HasWaterPump) {
+                // Droplet moved from (r1,c1) to (r2,c2)
+                clear3x3Area(r2, c2);
+              }
+              if (cell2HasDroplet && !cell2HasJerryCan && !cell2HasWaterPump) {
+                // Droplet moved from (r2,c2) to (r1,c1)  
+                clear3x3Area(r1, c1);
+              }
+              
+              if (movesLeft > 0) {
+                movesLeft--;
+                updateStats();
+              }
+
+              selectedCell.classList.remove('selected');
+              selectedCell = null;
+
+              // Wait longer for special tile effects to complete
+              setTimeout(() => {
+                shiftAndFillGrid();
+                updateDOMGrid();
+                setTimeout(() => {
+                  handleMatches();
+                  checkWinLose();
+                }, 600); // Wait for fall animation
+              }, 1000); // Wait for special tile clearing effects
+              return;
+            }
+
+            // Try the swap in memory (normal match-3 logic)
             const temp = grid[r1][c1];
             grid[r1][c1] = grid[r2][c2];
             grid[r2][c2] = temp;
@@ -760,6 +1186,9 @@ function renderGameGrid() {
   setTimeout(() => {
     handleMatches();
   }, 100);
+
+  // Create the popup when the game starts (needed for win/lose messages)
+  createPopup();
 }
 
 // Simple confetti function using DOM elements (no libraries)
@@ -924,3 +1353,171 @@ const countryDescriptions = {
     img: "img/Uganda-photo.png"
   }
 };
+
+// Clear all tiles of a specific type
+function clearAllOfType(targetIcon) {
+  let clearedCount = 0;
+  let objectiveCleared = 0;
+  
+  // Clear all tiles that match the target icon type
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (grid[r][c] !== null && isSameIcon(grid[r][c], targetIcon)) {
+        // Check if we're clearing an objective icon
+        if (isSameIcon(grid[r][c], icons[objectiveIconIndex])) {
+          objectiveCleared++;
+        }
+        grid[r][c] = null;
+        clearedCount++;
+      }
+    }
+  }
+  
+  // Add bonus points for Jerry Can activation (15 points per cleared icon)
+  currentScore += clearedCount * 15;
+  
+  // Update objective if we cleared objective icons
+  if (objectiveCleared > 0) {
+    let left = parseInt(gameplaySection.dataset.objectiveLeft || 10, 10);
+    left = left - objectiveCleared;
+    gameplaySection.dataset.objectiveLeft = left > 0 ? left : 0;
+    updateObjectiveText();
+  }
+  
+  updateStats();
+  return clearedCount > 0;
+}
+
+// Add popup elements for win/lose messages
+function createPopup() {
+  // Only add if not already present
+  if (document.getElementById('popupOverlay')) return;
+  const popup = document.createElement('div');
+  popup.id = 'popupOverlay';
+  popup.style.display = 'none';
+  popup.style.position = 'fixed';
+  popup.style.top = '0';
+  popup.style.left = '0';
+  popup.style.width = '100vw';
+  popup.style.height = '100vh';
+  popup.style.background = 'rgba(0,0,0,0.5)';
+  popup.style.zIndex = '200';
+  popup.style.justifyContent = 'center';
+  popup.style.alignItems = 'center';
+  popup.innerHTML = `
+    <div id="popupBox" style="
+      background: #fff;
+      border-radius: 12px;
+      padding: 2rem 1.5rem;
+      max-width: 420px;
+      width: 90vw;
+      margin: auto;
+      text-align: center;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    ">
+      <h2 id="popupTitle"></h2>
+      <p id="popupMsg"></p>
+      <button id="returnHomeBtn" style="
+        margin-top:1rem;
+        width: 100%;
+        max-width: 220px;
+        box-sizing: border-box;
+        font-size: 1rem;
+        padding: 0.6rem 1rem;
+        border-radius: 4px;
+        background: #ffcc00;
+        border: none;
+        font-weight: bold;
+        cursor: pointer;
+        display: block;
+      ">Return to Homepage</button>
+    </div>
+  `;
+  document.body.appendChild(popup);
+
+  document.getElementById('returnHomeBtn').onclick = function() {
+    popup.style.display = 'none';
+    gameplaySection.style.display = 'none';
+    puzzleSection.style.display = 'block';
+    // Show the country scroll bar and select country instruction again
+    countryScroll.style.display = '';
+    if (selectCountryInstruction) {
+      selectCountryInstruction.style.display = '';
+    }
+    // If a callback is set (for win), call it
+    if (typeof window._popupOnComplete === 'function') {
+      window._popupOnComplete();
+      window._popupOnComplete = null;
+    }
+    // Select the last played country again
+    if (selectedCountry) {
+      selectCountry(selectedCountry);
+    }
+  };
+}
+
+// Show popup with title and message
+function showPopup(title, msg, onComplete) {
+  document.getElementById('popupTitle').textContent = title;
+  // Use innerHTML so HTML tags like <br> and <strong> are rendered
+  document.getElementById('popupMsg').innerHTML = msg;
+  document.getElementById('popupOverlay').style.display = 'flex';
+  // Store callback for after popup closes
+  window._popupOnComplete = onComplete;
+}
+
+// Check for win/lose after every match or move
+function checkWinLose() {
+  const left = parseInt(gameplaySection.dataset.objectiveLeft || 10, 10);
+  if (left <= 0) {
+    // Player completed the objective
+
+    // Show confetti when player wins
+    showConfetti();
+
+    // Calculate bonus points for unused moves
+    const bonusPoints = movesLeft * 2; // 2 points for each unused move
+    currentScore += bonusPoints; // Add bonus to current score
+
+    // Add the current score to the rewards summary (totalPoints in localStorage)
+    let totalPoints = localStorage.getItem('totalPoints');
+    if (!totalPoints) {
+      totalPoints = 0;
+    } else {
+      totalPoints = parseInt(totalPoints, 10);
+    }
+    totalPoints += currentScore;
+    localStorage.setItem('totalPoints', totalPoints);
+
+    // Get country description and photo
+    const countryInfo = countryDescriptions[selectedCountry];
+    let countryHtml = "";
+    if (countryInfo) {
+      countryHtml = `
+        <div style="margin:1rem 0;">
+          <img src="${countryInfo.img}" alt="${selectedCountry}" style="width:100%;max-width:220px;border-radius:8px;box-shadow:0 2px 8px #0001;">
+        </div>
+        <div style="font-size:1rem; color:#333; margin-bottom:0.5rem;">
+          <strong>About ${selectedCountry}:</strong><br>
+          ${countryInfo.desc}
+        </div>
+      `;
+    }
+
+    // Show the total score and bonus in the winning message, plus country info
+    showPopup(
+      "Level Complete!",
+      `Congratulations! You finished the level.<br>Your Total Score: <strong>${currentScore}</strong><br>Bonus for Unused Moves: <strong>${bonusPoints}</strong><br>${countryHtml}`,
+      function() {
+        // Unlock next level for this country
+        unlockNextLevel(selectedCountry);
+      }
+    );
+  } else if (movesLeft <= 0) {
+    // Player failed the level
+    showPopup("Level Failed", "You ran out of moves. Try again!");
+  }
+}
